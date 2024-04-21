@@ -159,19 +159,36 @@ class Mpesa
     /**
      * Generates a base64 encoded token
      */
-    public function getToken()
-    {
-        if (!empty($this->public_key) && !empty($this->api_key)) {
-            $key = "-----BEGIN PUBLIC KEY-----\n";
-            $key .= wordwrap($this->public_key, 60, "\n", true);
-            $key .= "\n-----END PUBLIC KEY-----";
-            $pk = openssl_get_publickey($key);
-            openssl_public_encrypt($this->api_key, $token, $pk, OPENSSL_PKCS1_PADDING);
-
-            return base64_encode($token);
-        }
-        return 'error';
+public function getToken()
+{
+    if (empty($this->public_key) || empty($this->api_key)) {
+        // If public_key key or api_key is empty return null
+        return null;
     }
+
+    try {
+        $key = "-----BEGIN PUBLIC KEY-----\n";
+        $key .= wordwrap($this->public_key, 60, "\n", true);
+        $key .= "\n-----END PUBLIC KEY-----";
+        
+        // Encrypt API key
+        $pk = openssl_get_publickey($key);
+        if (!$pk) {
+            throw new \Exception('Failed to get public key');
+        }
+
+        $success = openssl_public_encrypt($this->api_key, $token, $pk, OPENSSL_PKCS1_PADDING);
+        if (!$success) {
+            throw new \Exception('Failed to encrypt API key');
+        }
+        
+        return base64_encode($token);
+    } catch (\Exception $e) {
+        // Log the error
+        error_log('Error generating token: ' . $e->getMessage());
+        return null;
+    }
+}
 
     /**
      * @param string $url
